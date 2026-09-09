@@ -1,3 +1,4 @@
+from app.config import GEMINI_MODEL, GEMINI_EMBEDDING_MODEL
 import os
 import uuid
 from langchain_community.document_loaders import PyPDFLoader
@@ -38,9 +39,9 @@ TEXT:
 """
 
 def process_pdf(filepath: str, db: Session):
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0.0)
+    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.0)
     structured_llm = llm.with_structured_output(ExtractionResult)
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+    embeddings = GoogleGenerativeAIEmbeddings(model=GEMINI_EMBEDDING_MODEL)
     
     filename = os.path.basename(filepath)
     doc_id = str(uuid.uuid4())
@@ -116,7 +117,7 @@ def process_pdf(filepath: str, db: Session):
                         qualifiers=extracted_claim.qualifiers,
                         source_quote=extracted_claim.source_quote,
                         extraction_confidence=extracted_claim.extraction_confidence,
-                        extraction_method="llm_gemini_flash",
+                        extraction_method=f"llm_{GEMINI_MODEL}",
                         embedding=vector
                     )
                     db.add(db_claim)

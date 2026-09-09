@@ -1,3 +1,4 @@
+from app.config import GEMINI_MODEL
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -24,7 +25,7 @@ def run_verdict_engine(db: Session, process_all: bool = False):
         db: Database session
         process_all: If False, only process claims that have no verdicts yet (incremental)
     """
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.0)
+    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.0)
     structured_llm = llm.with_structured_output(Tier2Verdict)
     
     # Get claims to process

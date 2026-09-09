@@ -154,7 +154,7 @@ def get_relationship(rel_id: int, db: Session = Depends(get_db)):
 
 @app.get("/failures")
 def list_failures(db: Session = Depends(get_db)):
-    failures = db.query(FailureLog).order_by(FailureLog.id.desc()).limit(50).all()
+    failures = db.query(FailureLog).order_by(FailureLog.created_at.desc()).limit(50).all()
     return [{
         "id": f.id,
         "error_type": f.error_type,

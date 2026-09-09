@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, JSON, ForeignKey, CheckConstraint, UniqueConstraint, text, Float
+from datetime import datetime, timezone
+from sqlalchemy import create_engine, Column, DateTime, Integer, String, Text, JSON, ForeignKey, CheckConstraint, UniqueConstraint, text, Float
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from pgvector.sqlalchemy import Vector
 import os
@@ -73,6 +74,7 @@ class FailureLog(Base):
     error_type = Column(String)
     context = Column(Text)
     error_message = Column(Text)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 def init_db():
     with engine.connect() as conn:

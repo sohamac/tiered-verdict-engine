@@ -133,7 +133,7 @@ with tab2:
     elif case_type == "Failure/Audit":
         st.subheader("Case 4a: Extraction/Grounding Failure")
         failure = db.scalars(
-            select(FailureLog).filter(FailureLog.error_type.in_([
+            select(FailureLog).order_by(FailureLog.created_at.desc()).filter(FailureLog.error_type.in_([
                 "Grounding_Verification_Failed", 
                 "Low_Confidence_Extraction",
                 "Extraction_Error"
@@ -149,7 +149,7 @@ with tab2:
         st.divider()
         st.subheader("Case 4b: Tier 2 Reasoning Failure")
         t2_fail = db.scalars(
-            select(FailureLog).filter_by(error_type="Tier2_Evidence_Verification_Failed")
+            select(FailureLog).order_by(FailureLog.created_at.desc()).filter_by(error_type="Tier2_Evidence_Verification_Failed")
         ).first()
         if t2_fail:
             st.error("Tier 2 Evidence Verification Failed")
@@ -188,11 +188,12 @@ with tab3:
 with tab4:
     st.header("System Failure Logs")
     db = next(get_db())
-    failures = db.scalars(select(FailureLog)).all()
+    failures = db.scalars(select(FailureLog).order_by(FailureLog.created_at.desc())).all()
     if failures:
         data = []
         for f in failures:
             data.append({
+                "Time": f.created_at.strftime("%H:%M:%S") if getattr(f, "created_at", None) else "N/A",
                 "Type": f.error_type,
                 "Message": f.error_message[:100] + "...",
                 "Context": f.context[:80] + "..." if f.context else ""

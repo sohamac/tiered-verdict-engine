@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import tempfile
 import os
 import shutil
@@ -46,7 +47,6 @@ async def upload_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
 
 @app.get("/documents")
 def list_documents(db: Session = Depends(get_db)):
-    from sqlalchemy import func
     docs = db.execute(
         text("SELECT c.doc_id, c.filename, COUNT(c.id) as claim_count FROM claims c GROUP BY c.doc_id, c.filename")
     ).fetchall()

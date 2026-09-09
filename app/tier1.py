@@ -28,25 +28,25 @@ def check_unit_mismatch(q_a: dict, q_b: dict) -> Optional[str]:
         return f"Unit mismatch: {unit_a} vs {unit_b}"
     return None
 
+
+import re
+
 def check_time_scope(q_a: dict, q_b: dict) -> Optional[str]:
-    """Check for non-overlapping time scopes."""
     time_a = str(q_a.get("time_scope", "")).lower().strip()
     time_b = str(q_b.get("time_scope", "")).lower().strip()
     fiscal_a = str(q_a.get("fiscal_year", "")).lower().strip()
     fiscal_b = str(q_b.get("fiscal_year", "")).lower().strip()
     
-    # If both have explicit fiscal years
     if fiscal_a and fiscal_b and fiscal_a != fiscal_b:
         return f"Different fiscal years: {fiscal_a} vs {fiscal_b}"
     
-    # If both have time scopes
     if time_a and time_b and time_a != time_b:
-        # Check for overlapping periods
-        if "q1" in time_a and "q1" not in time_b:
+        year_a, year_b = re.search(r"\d{2,4}", time_a), re.search(r"\d{2,4}", time_b)
+        q_a_m, q_b_m = re.search(r"q([1-4])", time_a), re.search(r"q([1-4])", time_b)
+        if year_a and year_b and year_a.group() != year_b.group():
+            return f"Different periods: {time_a} vs {time_b}"
+        if q_a_m and q_b_m and q_a_m.group(1) != q_b_m.group(1):
             return f"Different quarters: {time_a} vs {time_b}"
-        if "fy24" in time_a and "fy23" in time_b:
-            return f"Different fiscal years: {time_a} vs {time_b}"
-    
     return None
 
 def check_numeric_delta(val_a: str, val_b: str, threshold: float = 0.05) -> Optional[str]:
@@ -85,7 +85,7 @@ def tier1_filter(claim_a, claim_b) -> Tuple[Optional[VerdictType], Optional[str]
     - If returns (None, None): pass to Tier 2
     """
     # 1. Subject overlap check
-    if not check_subject_overlap(claim_a.subject, claim_a.predicate):
+    if not check_subject_overlap(claim_a.subject, claim_b.subject):
         return None, None  # Skip entirely — different subjects
     
     q_a = claim_a.qualifiers or {}

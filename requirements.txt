@@ -1,0 +1,12 @@
+streamlit
+fastapi
+sqlalchemy
+psycopg2-binary
+pgvector
+langchain
+langchain-google-genai
+langchain-community
+pypdf
+thefuzz
+pytest
+pydantic

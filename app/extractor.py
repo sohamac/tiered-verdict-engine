@@ -41,7 +41,10 @@ TEXT:
 def process_pdf(filepath: str, db: Session):
     llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.0)
     structured_llm = llm.with_structured_output(ExtractionResult)
-    embeddings = GoogleGenerativeAIEmbeddings(model=GEMINI_EMBEDDING_MODEL)
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model=GEMINI_EMBEDDING_MODEL,
+        output_dimensionality=768
+    )
     
     filename = os.path.basename(filepath)
     doc_id = str(uuid.uuid4())
@@ -50,8 +53,8 @@ def process_pdf(filepath: str, db: Session):
     pages = loader.load()
     
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1500,
-        chunk_overlap=200,
+        chunk_size=4000,
+        chunk_overlap=300,
         separators=["\n\n", "\n", ". ", " ", ""]
     )
     
@@ -72,6 +75,9 @@ def process_pdf(filepath: str, db: Session):
                 if not result or not result.claims:
                     continue
                     
+                valid_claims = []
+                claim_texts = []
+                
                 for extracted_claim in result.claims:
                     # Ingestion Verifier Gate
                     similarity = fuzz.partial_ratio(
@@ -103,27 +109,35 @@ def process_pdf(filepath: str, db: Session):
                         db.add(log)
                     
                     claim_text = f"{extracted_claim.subject} {extracted_claim.predicate} {extracted_claim.object}"
-                    vector = embeddings.embed_query(claim_text)
+                    valid_claims.append(extracted_claim)
+                    claim_texts.append(claim_text)
                     
-                    db_claim = Claim(
-                        doc_id=doc_id,
-                        filename=filename,
-                        page_number=page_number,
-                        chunk_id=chunk_id,
-                        claim_type=extracted_claim.claim_type.value,
-                        subject=extracted_claim.subject,
-                        predicate=extracted_claim.predicate,
-                        object=extracted_claim.object,
-                        qualifiers=extracted_claim.qualifiers,
-                        source_quote=extracted_claim.source_quote,
-                        extraction_confidence=extracted_claim.extraction_confidence,
-                        extraction_method=f"llm_{GEMINI_MODEL}",
-                        embedding=vector
-                    )
-                    db.add(db_claim)
-                    total_claims += 1
+                if claim_texts:
+                    # Batch embedding!
+                    vectors = embeddings.embed_documents(claim_texts)
+                    for extracted_claim, vector in zip(valid_claims, vectors):
+                        db_claim = Claim(
+                            doc_id=doc_id,
+                            filename=filename,
+                            page_number=page_number,
+                            chunk_id=chunk_id,
+                            claim_type=extracted_claim.claim_type.value,
+                            subject=extracted_claim.subject,
+                            predicate=extracted_claim.predicate,
+                            object=extracted_claim.object,
+                            qualifiers=extracted_claim.qualifiers,
+                            source_quote=extracted_claim.source_quote,
+                            extraction_confidence=extracted_claim.extraction_confidence,
+                            extraction_method=f"llm_{GEMINI_MODEL}",
+                            embedding=vector
+                        )
+                        db.add(db_claim)
+                        total_claims += 1
+                        
+                db.commit() # Incremental commit per chunk!
                     
             except Exception as e:
+                db.rollback()
                 log = FailureLog(
                     doc_id=doc_id,
                     chunk_id=chunk_id,
@@ -132,6 +146,7 @@ def process_pdf(filepath: str, db: Session):
                     error_message=str(e)
                 )
                 db.add(log)
+                db.commit()
                 total_failures += 1
                 
     db.commit()

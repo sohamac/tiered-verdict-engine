@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, JSON, ForeignKey, CheckConstraint, UniqueConstraint, text
+from sqlalchemy import create_engine, Column, Integer, String, Text, JSON, ForeignKey, CheckConstraint, UniqueConstraint, text, Float
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from pgvector.sqlalchemy import Vector
 import os
@@ -23,13 +23,18 @@ class Claim(Base):
     chunk_id = Column(String)
     
     # Agnostic Claim Data
+    claim_type = Column(String, index=True)
     subject = Column(String, index=True)
     predicate = Column(String, index=True)
-    object = Column(String)
+    object = Column(Text)
     qualifiers = Column(JSON)
     
     # Evidence
     source_quote = Column(Text)
+    
+    # Quality
+    extraction_confidence = Column(Float, default=0.8)
+    extraction_method = Column(String, default="llm_gemini")
     
     # Vector Embedding (Google text-embedding-004 is 768 dims)
     embedding = Column(Vector(768))
@@ -41,9 +46,16 @@ class Verdict(Base):
     claim_a_id = Column(Integer, ForeignKey("claims.id"))
     claim_b_id = Column(Integer, ForeignKey("claims.id"))
     relationship_type = Column(String, index=True)
+    confidence = Column(Float, default=0.8)
+    tier_used = Column(Integer, default=2)
     reasoning = Column(Text)
     
-    # Constraint 1: Canonical Ordering
+    # Evidence verification
+    verified_quote_a = Column(Text)
+    verified_quote_b = Column(Text)
+    verification_status = Column(String, default="pending")  # pending, verified, failed
+    
+    # Constraint: Canonical Ordering + Uniqueness
     __table_args__ = (
         CheckConstraint('claim_a_id < claim_b_id', name='check_canonical_ordering'),
         UniqueConstraint('claim_a_id', 'claim_b_id', name='uq_claim_pair'),
@@ -56,12 +68,13 @@ class FailureLog(Base):
     __tablename__ = "failure_logs"
     
     id = Column(Integer, primary_key=True, index=True)
+    doc_id = Column(String)
+    chunk_id = Column(String)
     error_type = Column(String)
     context = Column(Text)
     error_message = Column(Text)
 
 def init_db():
-    # Explicitly create the vector extension before creating tables
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         conn.commit()

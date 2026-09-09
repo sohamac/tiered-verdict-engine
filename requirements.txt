@@ -10,3 +10,5 @@ pypdf
 thefuzz
 pytest
 pydantic
+uvicorn
+python-multipart

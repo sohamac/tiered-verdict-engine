@@ -1,3 +1,5 @@
+import time
+from app.llm_utils import call_with_retry
 from app.config import GEMINI_MODEL, GEMINI_EMBEDDING_MODEL
 import os
 import uuid
@@ -70,7 +72,8 @@ def process_pdf(filepath: str, db: Session):
             
             try:
                 prompt = EXTRACTION_PROMPT_TEMPLATE.format(text=chunk_text)
-                result = structured_llm.invoke(prompt)
+                result = call_with_retry(structured_llm.invoke, prompt)
+                time.sleep(2)
                 
                 if not result or not result.claims:
                     continue

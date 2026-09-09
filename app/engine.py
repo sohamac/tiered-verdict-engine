@@ -1,3 +1,5 @@
+import time
+from app.llm_utils import call_with_retry
 from app.config import GEMINI_MODEL
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_
@@ -106,7 +108,8 @@ Determine if these are:
 Provide your reasoning and cite the specific evidence quotes you used."""
             
             try:
-                result = structured_llm.invoke(prompt)
+                result = call_with_retry(structured_llm.invoke, prompt)
+                time.sleep(2)
                 
                 # ===== EVIDENCE VERIFIER =====
                 verified_a, status_a = verify_evidence(claim_a, result.cited_quote_a)
